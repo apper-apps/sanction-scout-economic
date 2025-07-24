@@ -64,15 +64,21 @@ const SearchPage = () => {
       
       setError(errorMessage);
       setResults([]);
-      setTotalItems(0);
+console.error('Search error:', err);
       
-      // Show user-friendly error message
-      const userMessage = err?.statusCode === 429 
-        ? 'Too many requests. Please wait a moment and try again.'
-        : err?.statusCode >= 500
-        ? 'Server error. Please try again later.'
-        : errorMessage;
-        
+      // Show user-friendly error message with enhanced error handling
+      let userMessage = errorMessage;
+      
+      if (err?.statusCode === 429) {
+        userMessage = 'Too many requests. Please wait a moment and try again.';
+      } else if (err?.statusCode >= 500) {
+        userMessage = 'Server error. Please try again later.';
+      } else if (err?.statusCode === null && (errorMessage.includes("Network error") || errorMessage.includes("Load failed"))) {
+        userMessage = 'Connection failed. Please check your internet connection and try again.';
+      } else if (errorMessage.includes("timeout")) {
+        userMessage = 'Request timed out. Please try again.';
+      }
+      
       toast.error(userMessage);
     } finally {
       setLoading(false);

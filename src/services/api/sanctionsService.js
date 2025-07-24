@@ -64,16 +64,32 @@ const sanctionsService = {
         throw createError(`Search failed: ${statusText}`, response.status);
       }
 
-      const data = await response.json();
+const data = await response.json();
+      
+      if (!data || data.error) {
+        throw createError(data?.detail || data?.error || 'Search failed', response.status);
+      }
       
       return {
         results: data.results || [],
         total: data.total || 0,
+        limit: data.limit || limit,
+        offset: data.offset || offset
       };
     } catch (error) {
-      if (error.name === "TypeError" && error.message.includes("fetch")) {
-        throw new Error("Network error. Please check your connection and try again.");
+      // Handle specific error types for better user experience
+      if (error.name === "TypeError") {
+        if (error.message.includes("fetch") || error.message.includes("Load failed")) {
+          throw createError("Network error. Please check your connection and try again.", null);
+        }
+        if (error.message.includes("timeout")) {
+          throw createError("Request timeout. Please try again.", null);
+        }
       }
+      if (error.name === "AbortError") {
+        throw createError("Request was cancelled.", null);
+      }
+      // Re-throw errors that already have proper formatting
       throw error;
     }
   },
@@ -94,15 +110,30 @@ const sanctionsService = {
         if (response.status === 429) {
           throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
         }
-        throw new Error(`Failed to load entity details: ${response.statusText}`);
+throw new Error(`Failed to load entity details: ${response.statusText}`);
       }
-
+      
       const data = await response.json();
+      
+      if (!data || data.error) {
+        throw createError(data?.detail || data?.error || 'Failed to fetch entity details', response.status);
+      }
+      
       return data;
     } catch (error) {
-      if (error.name === "TypeError" && error.message.includes("fetch")) {
-        throw new Error("Network error. Please check your connection and try again.");
+      // Handle specific error types for better user experience
+      if (error.name === "TypeError") {
+        if (error.message.includes("fetch") || error.message.includes("Load failed")) {
+          throw createError("Network error. Please check your connection and try again.", null);
+        }
+        if (error.message.includes("timeout")) {
+          throw createError("Request timeout. Please try again.", null);
+        }
       }
+      if (error.name === "AbortError") {
+        throw createError("Request was cancelled.", null);
+      }
+      // Re-throw errors that already have proper formatting
       throw error;
     }
   },
@@ -116,16 +147,31 @@ const sanctionsService = {
         headers: createHeaders()
       });
       
-      if (!response.ok) {
+if (!response.ok) {
         throw new Error(`Failed to load datasets: ${response.statusText}`);
       }
-
+      
       const data = await response.json();
+      
+      if (!data || data.error) {
+        throw createError(data?.detail || data?.error || 'Failed to fetch datasets', response.status);
+      }
+      
       return data;
     } catch (error) {
-      if (error.name === "TypeError" && error.message.includes("fetch")) {
-        throw new Error("Network error. Please check your connection and try again.");
+      // Handle specific error types for better user experience
+      if (error.name === "TypeError") {
+        if (error.message.includes("fetch") || error.message.includes("Load failed")) {
+          throw createError("Network error. Please check your connection and try again.", null);
+        }
+        if (error.message.includes("timeout")) {
+          throw createError("Request timeout. Please try again.", null);
+        }
       }
+      if (error.name === "AbortError") {
+        throw createError("Request was cancelled.", null);
+      }
+      // Re-throw errors that already have proper formatting
       throw error;
     }
   }
