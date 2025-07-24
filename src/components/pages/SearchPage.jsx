@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import SearchBar from "@/components/molecules/SearchBar";
-import SearchResults from "@/components/organisms/SearchResults";
-import EntityDetails from "@/components/organisms/EntityDetails";
 import sanctionsService from "@/services/api/sanctionsService";
+import EntityDetails from "@/components/organisms/EntityDetails";
+import SearchResults from "@/components/organisms/SearchResults";
+import SearchBar from "@/components/molecules/SearchBar";
 
 const SearchPage = () => {
   const [query, setQuery] = useState("");
@@ -22,29 +22,35 @@ const [selectedEntityId, setSelectedEntityId] = useState(null);
   const itemsPerPage = 20;
   const debouncedQuery = useDebounce(query, 500);
 // API Health Check Effect
-  useEffect(() => {
+useEffect(() => {
     const checkApiHealth = async () => {
       try {
         setApiStatus('checking');
+        console.log('Checking API health...');
         const healthResult = await sanctionsService.checkApiHealth();
+        console.log('API health check result:', healthResult);
         
         if (healthResult.status === 'connected') {
           setApiStatus('connected');
           setLastHealthCheck(new Date());
-          
-          // Only show success toast if previously disconnected
-          if (apiStatus === 'disconnected') {
-            toast.success('API connection restored');
-          }
+        } else {
+          setApiStatus('disconnected');
+          setLastHealthCheck(new Date());
         }
       } catch (error) {
-        console.error('API health check failed:', error);
+        console.error('API health check failed:', {
+          message: error.message,
+          statusCode: error.statusCode,
+          name: error.name,
+          stack: error.stack
+        });
         setApiStatus('disconnected');
         setLastHealthCheck(new Date());
         
         // Only show error toast if previously connected
         if (apiStatus === 'connected') {
-          toast.error('API connection lost');
+          const errorMsg = error.message || 'API connection lost';
+          toast.error(`API Error: ${errorMsg}`);
         }
       }
     };
@@ -102,7 +108,6 @@ const [selectedEntityId, setSelectedEntityId] = useState(null);
       
       setError(errorMessage);
       setResults([]);
-console.error('Search error:', err);
       
       // Show user-friendly error message with enhanced error handling
       let userMessage = errorMessage;

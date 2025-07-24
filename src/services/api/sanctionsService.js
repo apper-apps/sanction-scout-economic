@@ -71,26 +71,34 @@ const data = await response.json();
       }
       
       return {
-        results: data.results || [],
+        entities: data.results || [],
         total: data.total || 0,
         limit: data.limit || limit,
         offset: data.offset || offset
       };
     } catch (error) {
+      console.error('Search request failed:', error);
+      
       // Handle specific error types for better user experience
       if (error.name === "TypeError") {
         if (error.message.includes("fetch") || error.message.includes("Load failed")) {
-          throw createError("Network error. Please check your connection and try again.", null);
+          throw createError(`Network error: ${error.message}. Please check your connection and try again.`, null);
         }
         if (error.message.includes("timeout")) {
-          throw createError("Request timeout. Please try again.", null);
+          throw createError(`Request timeout: ${error.message}. Please try again.`, null);
         }
       }
       if (error.name === "AbortError") {
         throw createError("Request was cancelled.", null);
       }
-      // Re-throw errors that already have proper formatting
-      throw error;
+      
+      // For errors that already have proper formatting, preserve original context
+      if (error.message && error.statusCode !== undefined) {
+        throw error; // Already properly formatted
+      }
+      
+      // For unexpected errors, wrap with context
+      throw createError(`Search failed: ${error.message || 'Unknown error'}`, error.status || null);
     }
   },
 
@@ -103,38 +111,46 @@ const data = await response.json();
         headers: createHeaders()
       });
       
-      if (!response.ok) {
+if (!response.ok) {
         if (response.status === 404) {
-          throw new Error("Entity not found.");
+          throw createError("Entity not found.", 404);
         }
         if (response.status === 429) {
-          throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
+          throw createError("Rate limit exceeded. Please wait a moment before trying again.", 429);
         }
-throw createError(`Failed to load entity details: ${response.statusText}`, response.status);
+        throw createError(`Failed to load entity details: ${response.statusText}`, response.status);
       }
       
       const data = await response.json();
       
       if (!data || data.error) {
-        throw createError(data?.detail || data?.error || 'Failed to fetch entity details', response.status);
+        throw createError(data?.detail || data?.error || 'Entity details not available', response.status);
       }
       
       return data;
     } catch (error) {
+      console.error('Entity details request failed:', error);
+      
       // Handle specific error types for better user experience
       if (error.name === "TypeError") {
         if (error.message.includes("fetch") || error.message.includes("Load failed")) {
-          throw createError("Network error. Please check your connection and try again.", null);
+          throw createError(`Network error: ${error.message}. Please check your connection and try again.`, null);
         }
         if (error.message.includes("timeout")) {
-          throw createError("Request timeout. Please try again.", null);
+          throw createError(`Request timeout: ${error.message}. Please try again.`, null);
         }
       }
       if (error.name === "AbortError") {
         throw createError("Request was cancelled.", null);
       }
-      // Re-throw errors that already have proper formatting
-      throw error;
+      
+      // For errors that already have proper formatting, preserve original context
+      if (error.message && error.statusCode !== undefined) {
+        throw error; // Already properly formatted
+      }
+      
+      // For unexpected errors, wrap with context
+      throw createError(`Entity details failed: ${error.message || 'Unknown error'}`, error.status || null);
     }
   },
 
@@ -146,7 +162,6 @@ throw createError(`Failed to load entity details: ${response.statusText}`, respo
       const response = await fetch(`${API_BASE_URL}/datasets`, {
         headers: createHeaders()
       });
-      
 if (!response.ok) {
         throw createError(`Failed to load datasets: ${response.statusText}`, response.status);
       }
@@ -159,35 +174,42 @@ if (!response.ok) {
       
       return data;
     } catch (error) {
+      console.error('Datasets request failed:', error);
+      
       // Handle specific error types for better user experience
       if (error.name === "TypeError") {
         if (error.message.includes("fetch") || error.message.includes("Load failed")) {
-          throw createError("Network error. Please check your connection and try again.", null);
+          throw createError(`Network error: ${error.message}. Please check your connection and try again.`, null);
         }
         if (error.message.includes("timeout")) {
-          throw createError("Request timeout. Please try again.", null);
+          throw createError(`Request timeout: ${error.message}. Please try again.`, null);
         }
       }
       if (error.name === "AbortError") {
         throw createError("Request was cancelled.", null);
       }
-      // Re-throw errors that already have proper formatting
-// Re-throw errors that already have proper formatting
-      throw error;
+      
+      // For errors that already have proper formatting, preserve original context
+      if (error.message && error.statusCode !== undefined) {
+        throw error; // Already properly formatted
+      }
+      
+      // For unexpected errors, wrap with context
+      throw createError(`Datasets fetch failed: ${error.message || 'Unknown error'}`, error.status || null);
     }
   },
 
-  // Check API health/connection status
 // Check API health/connection status
-async checkApiHealth() {
+  async checkApiHealth() {
     await delay(200);
     
     try {
+      console.log('Performing API health check...');
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for health checks
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch(`${API_BASE_URL}/datasets`, {
-        method: 'HEAD', // Use HEAD for lightweight health check
+      const response = await fetch(`${API_BASE_URL}/entities/`, {
+        method: 'HEAD',
         headers: createHeaders(),
         signal: controller.signal
       });
@@ -195,25 +217,46 @@ async checkApiHealth() {
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw createError(`API health check failed: ${response.statusText}`, response.status);
+        const errorMsg = `API health check failed: HTTP ${response.status} ${response.statusText}`;
+        console.error(errorMsg);
+        throw createError(errorMsg, response.status);
       }
       
+      console.log('API health check successful');
       return { status: 'connected', timestamp: new Date().toISOString() };
     } catch (error) {
+      console.error('Health check error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
       // Handle specific error types for health check
       if (error.name === "TypeError") {
         if (error.message.includes("fetch") || error.message.includes("Load failed")) {
-          throw createError("API connection failed", null);
+          const detailedMsg = `API connection failed: ${error.message}`;
+          throw createError(detailedMsg, null);
         }
         if (error.message.includes("timeout")) {
-          throw createError("API connection timeout", null);
+          const detailedMsg = `API connection timeout: ${error.message}`;
+          throw createError(detailedMsg, null);
         }
+        // Generic TypeError
+        const detailedMsg = `API connection error: ${error.message}`;
+        throw createError(detailedMsg, null);
       }
       if (error.name === "AbortError") {
-        throw createError("API health check timeout", null);
+        throw createError("API health check timeout - request aborted", null);
       }
-      // Re-throw errors that already have proper formatting
-      throw error;
+      
+      // For errors that already have proper formatting, preserve them
+      if (error.message && error.statusCode !== undefined) {
+        throw error; // Already properly formatted
+      }
+      
+      // For unexpected errors, provide detailed context
+      const detailedMsg = `API health check failed: ${error.message || error.name || 'Unknown error'}`;
+      throw createError(detailedMsg, error.status || null);
     }
   }
 };
