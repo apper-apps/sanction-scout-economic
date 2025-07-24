@@ -110,7 +110,7 @@ const data = await response.json();
         if (response.status === 429) {
           throw new Error("Rate limit exceeded. Please wait a moment before trying again.");
         }
-throw new Error(`Failed to load entity details: ${response.statusText}`);
+throw createError(`Failed to load entity details: ${response.statusText}`, response.status);
       }
       
       const data = await response.json();
@@ -148,7 +148,7 @@ throw new Error(`Failed to load entity details: ${response.statusText}`);
       });
       
 if (!response.ok) {
-        throw new Error(`Failed to load datasets: ${response.statusText}`);
+        throw createError(`Failed to load datasets: ${response.statusText}`, response.status);
       }
       
       const data = await response.json();
@@ -170,6 +170,46 @@ if (!response.ok) {
       }
       if (error.name === "AbortError") {
         throw createError("Request was cancelled.", null);
+      }
+      // Re-throw errors that already have proper formatting
+// Re-throw errors that already have proper formatting
+      throw error;
+    }
+  },
+
+  // Check API health/connection status
+// Check API health/connection status
+  async checkApiHealth() {
+    await delay(200);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for health checks
+      
+      const response = await fetch(`${API_BASE_URL}/datasets`, {
+        method: 'HEAD', // Use HEAD for lightweight health check
+        headers: createHeaders(),
+        signal: controller.signal
+});
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw createError(`API health check failed: ${response.statusText}`, response.status);
+      }
+      
+      return { status: 'connected', timestamp: new Date().toISOString() };
+      // Handle specific error types for health check
+      if (error.name === "TypeError") {
+        if (error.message.includes("fetch") || error.message.includes("Load failed")) {
+          throw createError("API connection failed", null);
+        }
+        if (error.message.includes("timeout")) {
+          throw createError("API connection timeout", null);
+        }
+      }
+      if (error.name === "AbortError") {
+        throw createError("API health check timeout", null);
       }
       // Re-throw errors that already have proper formatting
       throw error;

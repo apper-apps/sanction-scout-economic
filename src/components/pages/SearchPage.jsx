@@ -12,13 +12,51 @@ const SearchPage = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedEntityId, setSelectedEntityId] = useState(null);
+const [selectedEntityId, setSelectedEntityId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [recentSearches, setRecentSearches] = useLocalStorage("sanction-scout-searches", []);
+  const [apiStatus, setApiStatus] = useState('checking'); // 'connected', 'disconnected', 'checking'
+  const [lastHealthCheck, setLastHealthCheck] = useState(null);
 
   const itemsPerPage = 20;
   const debouncedQuery = useDebounce(query, 500);
+// API Health Check Effect
+  useEffect(() => {
+    const checkApiHealth = async () => {
+      try {
+        setApiStatus('checking');
+        const healthResult = await sanctionsService.checkApiHealth();
+        
+        if (healthResult.status === 'connected') {
+          setApiStatus('connected');
+          setLastHealthCheck(new Date());
+          
+          // Only show success toast if previously disconnected
+          if (apiStatus === 'disconnected') {
+            toast.success('API connection restored');
+          }
+        }
+      } catch (error) {
+        console.error('API health check failed:', error);
+        setApiStatus('disconnected');
+        setLastHealthCheck(new Date());
+        
+        // Only show error toast if previously connected
+        if (apiStatus === 'connected') {
+          toast.error('API connection lost');
+        }
+      }
+    };
+
+    // Initial health check
+    checkApiHealth();
+
+    // Set up periodic health checks every 30 seconds
+    const healthCheckInterval = setInterval(checkApiHealth, 30000);
+
+    return () => clearInterval(healthCheckInterval);
+  }, [apiStatus]); // Include apiStatus to detect state changes
 
   useEffect(() => {
     if (debouncedQuery.trim()) {
@@ -124,15 +162,38 @@ console.error('Search error:', err);
                 global sanctions lists and watchlists for compliance verification.
               </p>
             </div>
-
-            <div className="max-w-3xl mx-auto">
+<div className="max-w-3xl mx-auto space-y-4">
               <SearchBar
                 onSearch={handleSearch}
                 loading={loading}
                 placeholder="Search for individuals, organizations, or entities..."
               />
+              
+              {/* API Connection Status */}
+              <div className="flex items-center justify-center space-x-2 text-sm">
+                <div className={`w-2 h-2 rounded-full ${
+                  apiStatus === 'connected' 
+                    ? 'bg-success animate-pulse' 
+                    : apiStatus === 'disconnected' 
+                    ? 'bg-error' 
+                    : 'bg-warning animate-pulse'
+                }`} />
+                <span className={`${
+                  apiStatus === 'connected' 
+                    ? 'text-success' 
+                    : apiStatus === 'disconnected' 
+                    ? 'text-error' 
+                    : 'text-warning'
+                }`}>
+                  API {apiStatus === 'connected' ? 'Connected' : apiStatus === 'disconnected' ? 'Disconnected' : 'Checking...'}
+                </span>
+                {lastHealthCheck && (
+                  <span className="text-gray-500">
+                    · Last checked {lastHealthCheck.toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
             </div>
-
             {/* Recent Searches */}
             {recentSearches.length > 0 && !query && (
               <div className="max-w-3xl mx-auto">
