@@ -54,11 +54,26 @@ const SearchPage = () => {
       } else if (page === 1) {
         toast.success(`Found ${data.total} results`);
       }
-    } catch (err) {
-      setError(err.message);
+} catch (err) {
+      // Defensive error handling for malformed error objects
+      const errorMessage = err?.message || 
+                          err?.toString?.() || 
+                          'An unexpected error occurred during search';
+      
+      console.error('Search error:', err);
+      
+      setError(errorMessage);
       setResults([]);
       setTotalItems(0);
-      toast.error(err.message);
+      
+      // Show user-friendly error message
+      const userMessage = err?.statusCode === 429 
+        ? 'Too many requests. Please wait a moment and try again.'
+        : err?.statusCode >= 500
+        ? 'Server error. Please try again later.'
+        : errorMessage;
+        
+      toast.error(userMessage);
     } finally {
       setLoading(false);
     }

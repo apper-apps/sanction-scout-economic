@@ -1,44 +1,67 @@
-const API_BASE_URL = "https://api.opensanctions.org";
+const API_BASE_URL = 'https://api.opensanctions.org';
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-// Get API key from environment variables
-const getApiKey = () => import.meta.env.VITE_OPENSANCTIONS_API_KEY;
+function getApiKey() {
+  return import.meta.env.VITE_OPENSANCTIONS_API_KEY;
+}
 
-// Create headers with optional API key authentication
-const createHeaders = () => {
+function createHeaders() {
+  const apiKey = getApiKey();
   const headers = {
-    'Content-Type': 'application/json'
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
   };
   
-  const apiKey = getApiKey();
   if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
   
   return headers;
-};
+}
+
+// Helper function to create proper Error objects
+function createError(message, statusCode = null) {
+  try {
+    const error = new (globalThis.Error || Error)(message);
+    if (statusCode) {
+      error.statusCode = statusCode;
+    }
+    return error;
+  } catch (e) {
+    // Fallback for environments where Error constructor is not available
+    const fallbackError = {
+      message: message || 'An error occurred',
+      name: 'Error',
+      statusCode: statusCode || 500,
+      toString: () => message || 'An error occurred'
+    };
+    return fallbackError;
+  }
+}
 
 const sanctionsService = {
-  // Search entities
   async searchEntities(query, limit = 20, offset = 0) {
-    await delay(300);
-    
-    try {
-      const params = new URLSearchParams({
-        q: query,
-        limit: limit.toString(),
-        offset: offset.toString()
-});
+    if (!query || query.trim().length === 0) {
+      throw createError('Search query is required');
+    }
 
-      const response = await fetch(`${API_BASE_URL}/search?${params}`, {
-        headers: createHeaders()
+    try {
+      const url = new URL(`${API_BASE_URL}/search/entities`);
+      url.searchParams.append('q', query.trim());
+      url.searchParams.append('limit', limit.toString());
+      url.searchParams.append('offset', offset.toString());
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: createHeaders(),
       });
+
       if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error("Rate limit exceeded. Please wait a moment before searching again.");
-        }
-        throw new Error(`Search failed: ${response.statusText}`);
+        const statusText = response.statusText || `HTTP ${response.status}`;
+        throw createError(`Search failed: ${statusText}`, response.status);
       }
 
       const data = await response.json();
@@ -46,8 +69,6 @@ const sanctionsService = {
       return {
         results: data.results || [],
         total: data.total || 0,
-        limit: data.limit || limit,
-        offset: data.offset || offset
       };
     } catch (error) {
       if (error.name === "TypeError" && error.message.includes("fetch")) {
