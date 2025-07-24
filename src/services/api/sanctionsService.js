@@ -1,6 +1,25 @@
+import React from "react";
+import Error from "@/components/ui/Error";
 const API_BASE_URL = "https://api.opensanctions.org";
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Get API key from environment variables
+const getApiKey = () => import.meta.env.VITE_OPENSANCTIONS_API_KEY;
+
+// Create headers with optional API key authentication
+const createHeaders = () => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  
+  const apiKey = getApiKey();
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+  
+  return headers;
+};
 
 const sanctionsService = {
   // Search entities
@@ -12,10 +31,11 @@ const sanctionsService = {
         q: query,
         limit: limit.toString(),
         offset: offset.toString()
-      });
+});
 
-      const response = await fetch(`${API_BASE_URL}/search?${params}`);
-      
+      const response = await fetch(`${API_BASE_URL}/search?${params}`, {
+        headers: createHeaders()
+      });
       if (!response.ok) {
         if (response.status === 429) {
           throw new Error("Rate limit exceeded. Please wait a moment before searching again.");
@@ -39,12 +59,14 @@ const sanctionsService = {
     }
   },
 
-  // Get entity details
+// Get entity details
   async getEntityDetails(entityId) {
     await delay(200);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/entities/${entityId}`);
+      const response = await fetch(`${API_BASE_URL}/entities/${entityId}`, {
+        headers: createHeaders()
+      });
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -66,12 +88,14 @@ const sanctionsService = {
     }
   },
 
-  // Get datasets information
+// Get datasets information
   async getDatasets() {
     await delay(200);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/datasets`);
+      const response = await fetch(`${API_BASE_URL}/datasets`, {
+        headers: createHeaders()
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to load datasets: ${response.statusText}`);
