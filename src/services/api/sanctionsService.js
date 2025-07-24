@@ -1,5 +1,3 @@
-import React from "react";
-import Error from "@/components/ui/Error";
 const API_BASE_URL = "https://api.opensanctions.org";
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
