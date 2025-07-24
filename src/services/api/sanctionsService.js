@@ -179,7 +179,7 @@ if (!response.ok) {
 
   // Check API health/connection status
 // Check API health/connection status
-  async checkApiHealth() {
+async checkApiHealth() {
     await delay(200);
     
     try {
@@ -190,7 +190,7 @@ if (!response.ok) {
         method: 'HEAD', // Use HEAD for lightweight health check
         headers: createHeaders(),
         signal: controller.signal
-});
+      });
       
       clearTimeout(timeoutId);
       
@@ -199,6 +199,7 @@ if (!response.ok) {
       }
       
       return { status: 'connected', timestamp: new Date().toISOString() };
+    } catch (error) {
       // Handle specific error types for health check
       if (error.name === "TypeError") {
         if (error.message.includes("fetch") || error.message.includes("Load failed")) {
